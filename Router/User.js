@@ -5,27 +5,53 @@ const UserModel = require("../Models/UserModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-router.post("/adminRegister", async (req, res) => {
+router.post("/adminLogin", async (req, res) => {
   try {
     let { body } = req;
     // Json creation for storing it in database
-    let payload = {
-      Username: body.Username,
+    let whereQuery = {
       email: body.email,
-      password: bcrypt.hashSync(body.password, 16),
       userType: "Admin"
     };
-    await UserModel.create(payload)
-      .then((savedUser) => {
-        // Handle successful save
-        res.json({
-          status: 200,
-          data: savedUser,
-        });
+    UserModel.findOne(whereQuery)
+      .then((response) => {
+        if (response) {
+          if (bcrypt.compareSync(body.password, response.password)) {
+            // generate jwt token
+            let token = jwt.sign(
+              {
+                Username: response.Username,
+                userType: response.userType,
+                email: response.email,
+                id: response._id,
+                userType: "Admin"
+              },
+              `key23KFUWqdi789`
+            );
+
+            res.status(200).json({
+              message: "Successfully logged in",
+              data: {
+                Username: response.Username,
+                userType: response.userType,
+                email: response.email,
+                id: response._id,
+                Token: token,
+              },
+            });
+          } else {
+            res.status(403).json({
+              message: "Inserted Password is incorrect",
+            });
+          }
+        } else {
+          res.status(404).json({
+            message: "Admin Not Found with the given Email Id",
+          });
+        }
       })
       .catch((error) => {
-        // Handle error
-        console.log("error", error);
+        printConsole(error);
       });
   } catch (error) {
     console.error("Error fetching users:", error);
